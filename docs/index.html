@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CW Trainer — Linux Morse Code Trainer</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --orange: #d29922;
+      --red: #f85149;
+      --code-bg: #1f2428;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+      height: 56px;
+    }
+    .nav-brand {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .nav-brand .dot { color: var(--accent); font-size: 1.4rem; }
+    nav ul {
+      display: flex;
+      gap: 1.5rem;
+      list-style: none;
+      margin-left: auto;
+    }
+    nav ul a { color: var(--muted); font-size: .9rem; }
+    nav ul a:hover { color: var(--text); text-decoration: none; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .35rem .85rem;
+      border-radius: var(--radius);
+      font-size: .875rem;
+      font-weight: 500;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-outline { border: 1px solid var(--border); color: var(--text); }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 5rem 2rem 3.5rem;
+      background: radial-gradient(ellipse 70% 45% at 50% 0%, rgba(88,166,255,.07) 0%, transparent 70%);
+    }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(88,166,255,.1);
+      border: 1px solid rgba(88,166,255,.25);
+      color: var(--accent);
+      border-radius: 2rem;
+      padding: .25rem .9rem;
+      font-size: .8rem;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      margin-bottom: 1.4rem;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 2.2rem;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── Morse animation ── */
+    .morse-demo {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      margin: 2.5rem auto 0;
+      height: 24px;
+    }
+    .pulse {
+      height: 16px;
+      border-radius: 3px;
+      background: var(--accent);
+      animation: blink 2.4s infinite;
+      opacity: .85;
+    }
+    .dit { width: 10px; }
+    .dah { width: 30px; }
+    /* S O S  =  . . . — — — . . . */
+    .p1 { animation-delay: 0s; }
+    .p2 { animation-delay: .22s; }
+    .p3 { animation-delay: .44s; }
+    .p4 { animation-delay: .8s;  width: 30px; }
+    .p5 { animation-delay: 1.12s; width: 30px; }
+    .p6 { animation-delay: 1.44s; width: 30px; }
+    .p7 { animation-delay: 1.8s; }
+    .p8 { animation-delay: 2.02s; }
+    .p9 { animation-delay: 2.24s; }
+    @keyframes blink {
+      0%, 8%   { opacity: .85; }
+      12%, 88% { opacity: .12; }
+      92%, 100%{ opacity: .85; }
+    }
+    .sos-label {
+      text-align: center;
+      font-family: monospace;
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: .6rem;
+      letter-spacing: .25em;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    section { padding: 4rem 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    h2 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 1.2rem;
+      color: var(--text);
+    }
+    h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin: 1.6rem 0 .6rem;
+      color: var(--text);
+    }
+    p { color: var(--muted); margin-bottom: .9rem; }
+    p strong { color: var(--text); }
+
+    /* ── Feature grid ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+    }
+    .feature-icon { font-size: 1.4rem; margin-bottom: .6rem; }
+    .feature-card h3 { margin: 0 0 .4rem; font-size: .95rem; }
+    .feature-card p { font-size: .875rem; margin: 0; }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: .75rem 0 1.25rem;
+    }
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: .875rem;
+      color: #c9d1d9;
+    }
+    p code, li code {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: .1em .4em;
+      font-size: .85em;
+      color: var(--accent);
+    }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; margin: .75rem 0 1.5rem; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .875rem;
+    }
+    th {
+      text-align: left;
+      padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: .8rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    td {
+      padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.02); }
+
+    /* ── Architecture diagram ── */
+    .arch {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 2rem;
+      font-family: monospace;
+      font-size: .85rem;
+      color: #c9d1d9;
+      line-height: 1.9;
+      overflow-x: auto;
+    }
+    .arch .node { color: var(--accent); }
+    .arch .arrow { color: var(--green); }
+    .arch .label { color: var(--muted); }
+
+    /* ── Koch sequence ── */
+    .koch-seq {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .4rem;
+      margin: 1rem 0;
+    }
+    .koch-char {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.2rem;
+      height: 2.2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-family: monospace;
+      font-size: 1rem;
+      color: var(--text);
+    }
+    .koch-char.first-two {
+      border-color: var(--accent);
+      background: rgba(88,166,255,.08);
+      color: var(--accent);
+    }
+
+    /* ── Steps ── */
+    .steps { list-style: none; counter-reset: step; }
+    .steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+      align-items: flex-start;
+    }
+    .steps li::before {
+      content: counter(step);
+      flex-shrink: 0;
+      width: 1.8rem;
+      height: 1.8rem;
+      background: rgba(88,166,255,.12);
+      border: 1px solid rgba(88,166,255,.3);
+      color: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .85rem;
+      font-weight: 700;
+      margin-top: .1rem;
+    }
+    .steps li p { margin: 0; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--text); }
+
+    /* ── Badges ── */
+    .badges { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .25rem .7rem;
+      border-radius: 2rem;
+      font-size: .78rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+    .badge-go { background: rgba(0,173,216,.12); border-color: rgba(0,173,216,.3); color: #00add8; }
+    .badge-linux { background: rgba(63,185,80,.12); border-color: rgba(63,185,80,.3); color: var(--green); }
+    .badge-alsa { background: rgba(210,153,34,.12); border-color: rgba(210,153,34,.3); color: var(--orange); }
+    .badge-license { background: rgba(139,148,158,.1); border-color: var(--border); color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-brand">
+    <span class="dot">·–</span> CW Trainer
+  </div>
+  <ul>
+    <li><a href="#features">Features</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#usage">Usage</a></li>
+    <li><a href="#koch">Koch Method</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+  </ul>
+  <a href="https://github.com/shaposhnikoff/cw-trainer/releases/latest" class="btn btn-primary">Download</a>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">Open Source · Linux · Go</div>
+  <h1>CW Trainer</h1>
+  <p class="hero-sub">
+    A Linux terminal Morse code trainer for iambic paddles.<br>
+    Real-time audio · adaptive timing · Koch method · live TUI.
+  </p>
+  <div class="hero-actions">
+    <a href="https://github.com/shaposhnikoff/cw-trainer/releases/latest" class="btn btn-primary">⬇ Download binary</a>
+    <a href="https://github.com/shaposhnikoff/cw-trainer" class="btn btn-outline">View on GitHub</a>
+  </div>
+
+  <div class="morse-demo">
+    <div class="pulse dit p1"></div>
+    <div class="pulse dit p2"></div>
+    <div class="pulse dit p3"></div>
+    <div class="pulse dah p4"></div>
+    <div class="pulse dah p5"></div>
+    <div class="pulse dah p6"></div>
+    <div class="pulse dit p7"></div>
+    <div class="pulse dit p8"></div>
+    <div class="pulse dit p9"></div>
+  </div>
+  <div class="sos-label">S O S</div>
+</div>
+
+<!-- Main content -->
+<div class="container">
+
+  <!-- Features -->
+  <section id="features">
+    <div class="badges">
+      <span class="badge badge-go">Go 1.21+</span>
+      <span class="badge badge-linux">Linux only</span>
+      <span class="badge badge-alsa">ALSA / PulseAudio</span>
+      <span class="badge badge-license">MIT License</span>
+    </div>
+    <h2>Features</h2>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon">🎛️</div>
+        <h3>Iambic Keyer</h3>
+        <p>Mode A and Mode B, squeeze keying, auto-repeating dit/dah from VBand and compatible paddles.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔊</div>
+        <h3>Real-time Audio</h3>
+        <p>Precise sine wave via ALSA/PulseAudio. 5ms fade envelope eliminates clicks on fast keying.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Adaptive Timing</h3>
+        <p>Automatically tracks your sending speed via rolling 8-symbol average. No manual WPM tuning needed.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <h3>Koch Trainer</h3>
+        <p>Structured learning from 2 characters at full speed. Advance at 90% accuracy. 40-character curriculum.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">💾</div>
+        <h3>Progress Persistence</h3>
+        <p>Koch level and per-character stats saved to <code>~/.cw-trainer/progress.json</code> between sessions.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🖥️</div>
+        <h3>Live TUI</h3>
+        <p>Decoded text, paddle activity indicator, WPM meter, and session timer in a clean terminal UI.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section id="install">
+    <h2>Installation</h2>
+
+    <h3>Download a binary</h3>
+    <p>Pre-built binaries for <strong>linux/amd64</strong> and <strong>linux/arm64</strong> are on the <a href="https://github.com/shaposhnikoff/cw-trainer/releases">Releases page</a>.</p>
+    <pre><code>tar xzf cw-trainer_*.tar.gz
+sudo mv cw-trainer /usr/local/bin/</code></pre>
+
+    <h3>Build from source</h3>
+    <p>Requires Go 1.21+ and <code>libasound2-dev</code>.</p>
+    <pre><code>sudo apt install libasound2-dev
+
+git clone https://github.com/shaposhnikoff/cw-trainer
+cd cw-trainer
+go build -o cw-trainer ./cmd/cw-trainer</code></pre>
+
+    <h3>Install with <code>go install</code></h3>
+    <pre><code>go install github.com/shaposhnikoff/cw-trainer/cmd/cw-trainer@latest</code></pre>
+
+    <h3>Device permissions</h3>
+    <p><code>/dev/input/event*</code> requires the <code>input</code> group. Add your user once:</p>
+    <pre><code>sudo usermod -aG input $USER
+newgrp input   # apply without re-login</code></pre>
+
+    <h3>Find your paddle device</h3>
+    <pre><code># List all input devices
+ls /dev/input/event*
+
+# Find your paddle by name
+cat /proc/bus/input/devices | grep -A5 -i "vband\|cw\|morse"
+
+# Monitor raw events
+sudo evtest /dev/input/event4</code></pre>
+
+    <p><strong>VBand CW Trainer protocol:</strong> <code>KEY_LEFTBRACE</code> (code 26) → dit · <code>KEY_RIGHTBRACE</code> (code 27) → dah</p>
+  </section>
+
+  <!-- Usage -->
+  <section id="usage">
+    <h2>Usage</h2>
+
+    <pre><code># Default device /dev/input/event4
+./cw-trainer
+
+# Specify device explicitly
+./cw-trainer --device /dev/input/event3
+
+# Set speed and tone frequency
+./cw-trainer --wpm 20 --freq 650
+
+# Iambic Mode B
+./cw-trainer --mode iambic-b
+
+# Koch Trainer mode
+./cw-trainer --koch --wpm 20
+
+# Debug mode — prints decoded symbols, no TUI
+./cw-trainer --debug --wpm 20</code></pre>
+
+    <h3>All flags</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Flag</th>
+            <th>Default</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>--device</code></td><td><code>/dev/input/event4</code></td><td>evdev device path</td></tr>
+          <tr><td><code>--wpm</code></td><td><code>15</code></td><td>Initial speed in WPM</td></tr>
+          <tr><td><code>--freq</code></td><td><code>700</code></td><td>Tone frequency in Hz</td></tr>
+          <tr><td><code>--mode</code></td><td><code>iambic-a</code></td><td>Keyer mode: <code>iambic-a</code>, <code>iambic-b</code></td></tr>
+          <tr><td><code>--letter-space</code></td><td><code>4.0</code></td><td>Letter space threshold (× dit duration)</td></tr>
+          <tr><td><code>--koch</code></td><td><code>false</code></td><td>Koch Trainer mode</td></tr>
+          <tr><td><code>--debug</code></td><td><code>false</code></td><td>Debug mode: print symbols, no TUI</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>TUI keyboard shortcuts</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Key</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>Q</code> / <code>Ctrl+C</code></td><td>Quit</td></tr>
+          <tr><td><code>+</code> / <code>=</code></td><td>Increase tone frequency (+10 Hz)</td></tr>
+          <tr><td><code>-</code></td><td>Decrease tone frequency (−10 Hz)</td></tr>
+          <tr><td><code>R</code></td><td>Reset decoded text and session stats</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Koch -->
+  <section id="koch">
+    <h2>Koch Trainer Method</h2>
+    <p>
+      The <a href="https://www.qsl.net/n1irz/finley.koch.html">Koch method</a> is the fastest way to learn Morse code.
+      You practice at <strong>full speed from day one</strong> — no slow copying.
+      Start with just two characters and advance only when you're accurate.
+    </p>
+
+    <ol class="steps">
+      <li><p>Start with <strong>K</strong> and <strong>M</strong> — the trainer plays one character at a time and waits for your paddle response.</p></li>
+      <li><p>Reach <strong>90% accuracy</strong> over 50 symbols to unlock the next character.</p></li>
+      <li><p>A new character is introduced and played 5 times so you can hear its pattern clearly.</p></li>
+      <li><p>Repeat until all 40 characters are learned.</p></li>
+    </ol>
+
+    <pre><code>./cw-trainer --koch --wpm 20</code></pre>
+
+    <p>Progress is saved automatically to <code>~/.cw-trainer/progress.json</code>.</p>
+
+    <h3>Character order</h3>
+    <p>The 40-character Koch sequence, starting with the two highest-contrast characters:</p>
+    <div class="koch-seq">
+      <span class="koch-char first-two">K</span>
+      <span class="koch-char first-two">M</span>
+      <span class="koch-char">R</span>
+      <span class="koch-char">S</span>
+      <span class="koch-char">U</span>
+      <span class="koch-char">A</span>
+      <span class="koch-char">P</span>
+      <span class="koch-char">T</span>
+      <span class="koch-char">L</span>
+      <span class="koch-char">O</span>
+      <span class="koch-char">W</span>
+      <span class="koch-char">I</span>
+      <span class="koch-char">.</span>
+      <span class="koch-char">N</span>
+      <span class="koch-char">J</span>
+      <span class="koch-char">E</span>
+      <span class="koch-char">F</span>
+      <span class="koch-char">0</span>
+      <span class="koch-char">Y</span>
+      <span class="koch-char">V</span>
+      <span class="koch-char">,</span>
+      <span class="koch-char">G</span>
+      <span class="koch-char">5</span>
+      <span class="koch-char">/</span>
+      <span class="koch-char">Q</span>
+      <span class="koch-char">9</span>
+      <span class="koch-char">Z</span>
+      <span class="koch-char">H</span>
+      <span class="koch-char">3</span>
+      <span class="koch-char">8</span>
+      <span class="koch-char">B</span>
+      <span class="koch-char">?</span>
+      <span class="koch-char">4</span>
+      <span class="koch-char">2</span>
+      <span class="koch-char">7</span>
+      <span class="koch-char">C</span>
+      <span class="koch-char">1</span>
+      <span class="koch-char">D</span>
+      <span class="koch-char">6</span>
+      <span class="koch-char">X</span>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture">
+    <h2>Architecture</h2>
+    <p>
+      All timing-sensitive work runs in dedicated goroutines connected by channels.
+      The iambic FSM is a single-goroutine timer-driven loop — no spawned goroutines per element, no races.
+    </p>
+
+    <div class="arch">
+<span class="node">evdev goroutine</span>
+  <span class="arrow">│</span>  <span class="label">chan KeyEvent</span>
+  <span class="arrow">▼</span>
+<span class="node">iambic FSM goroutine</span>        <span class="label">(timer-driven, single select loop)</span>
+  <span class="arrow">│</span>  <span class="label">onElement(toneMs, gapMs)</span>          <span class="label">onSymbol(sym, durationMs)</span>
+  <span class="arrow">▼</span>                                         <span class="arrow">▼</span>
+<span class="node">audio goroutine</span>                    <span class="node">timing decoder</span>
+  <span class="label">io.Pipe → oto player</span>               <span class="label">adaptive ditMs (rolling 8-avg)</span>
+  <span class="label">exact PCM per element</span>              <span class="label">letter / word space detection</span>
+                                           <span class="arrow">│</span>  <span class="label">onChar(rune)</span>
+                                           <span class="arrow">▼</span>
+                                   <span class="node">TUI goroutine (tea.Program)</span>
+    </div>
+
+    <h3>Key design: audio via <code>io.Pipe</code></h3>
+    <p>
+      Instead of a streaming reader with an on/off flag — which causes oto to pre-buffer audio
+      and ignore Stop() calls — each element writes an <strong>exact PCM block</strong>
+      (tone samples + silence samples) to an <code>io.Pipe</code>.
+      oto reads at hardware rate, so timing is precise with zero buffering artifacts.
+    </p>
+
+    <h3>Project structure</h3>
+    <pre><code>cw-trainer/
+├── cmd/cw-trainer/main.go        # entry point, CLI flags
+├── internal/
+│   ├── input/evdev.go            # evdev reader → KeyEvent channel
+│   ├── audio/tone.go             # PCM sine wave via oto/v2, io.Pipe
+│   ├── decoder/
+│   │   ├── iambic.go             # iambic keyer FSM (Mode A/B)
+│   │   ├── timing.go             # adaptive timing decoder
+│   │   ├── morse_table.go        # Morse code table A-Z, 0-9, punctuation
+│   │   └── *_test.go             # 13 tests
+│   ├── koch/
+│   │   ├── session.go            # Koch session logic
+│   │   ├── progress.go           # JSON progress persistence
+│   │   └── morse_map.go          # symbol→pattern lookup
+│   └── ui/
+│       ├── tui.go                # main TUI (bubbletea + lipgloss)
+│       └── koch_tui.go           # Koch Trainer TUI screen
+├── go.mod
+└── go.sum</code></pre>
+
+    <h3>Running tests</h3>
+    <pre><code>go test ./...
+go test -v ./internal/decoder/</code></pre>
+  </section>
+
+</div><!-- /container -->
+
+<footer>
+  <p>
+    Built with Go · <a href="https://github.com/shaposhnikoff/cw-trainer">github.com/shaposhnikoff/cw-trainer</a>
+    · <a href="https://github.com/shaposhnikoff/cw-trainer/releases">Releases</a>
+    · <a href="https://github.com/shaposhnikoff/cw-trainer/issues">Issues</a>
+  </p>
+</footer>
+
+</body>
+</html>
