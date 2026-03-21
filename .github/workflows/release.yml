@@ -27,7 +27,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev gcc-aarch64-linux-gnu
+          sudo apt-get install -y libasound2-dev
 
       - name: Run tests
         run: go test ./...
