@@ -6,9 +6,9 @@ build:
 test:
 	go test ./...
 
-# Create and push a release tag: v1.0.DDMMYYYY.HHMM
+# Create and push a release tag: v1.DDMMYYYY.HHMM  (valid semver)
 release:
-	$(eval TAG := v1.0.$(shell date +%d%m%Y.%H%M))
+	$(eval TAG := v1.$(shell date +%d%m%Y).$(shell date +%H%M))
 	@echo "Tagging $(TAG)"
 	git tag $(TAG)
 	git push origin $(TAG)
