@@ -1,8 +1,15 @@
-.PHONY: build test release
+.PHONY: build build-trainer build-groups test release
 CURRENT_VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 
 build:
 	go build -o cw-trainer ./cmd/cw-trainer
+	go build -o cw-groups ./cmd/cw-groups
+
+build-trainer:
+	go build -o cw-trainer ./cmd/cw-trainer
+
+build-groups:
+	go build -o cw-groups ./cmd/cw-groups
 
 test:
 	go test ./...
