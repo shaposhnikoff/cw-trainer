@@ -194,14 +194,57 @@ func TestIambic_SOS_Symbols(t *testing.T) {
 	dit := func() { tap(input.DitKey, 15*time.Millisecond) }
 	dah := func() { tap(input.DahKey, 27*time.Millisecond) }
 
-	dit(); dit(); dit() // S
+	dit()
+	dit()
+	dit()                             // S
 	time.Sleep(20 * time.Millisecond) // inter-letter gap
-	dah(); dah(); dah() // O
+	dah()
+	dah()
+	dah() // O
 	time.Sleep(20 * time.Millisecond)
-	dit(); dit(); dit() // S
+	dit()
+	dit()
+	dit() // S
 
 	syms := collectN(t, symbols, 9, 2*time.Second)
 	if symStr(syms) != "...---..." {
 		t.Errorf("expected SOS (\"...---...\"), got %q", symStr(syms))
+	}
+}
+
+func TestIambic_ModeA_NoExtraAfterSqueezeRelease(t *testing.T) {
+	_, events, symbols, cancel := runKeyer(t, testWPM, ModeA)
+	defer cancel()
+
+	press(events, input.DitKey)
+	press(events, input.DahKey)
+	time.Sleep(2 * time.Millisecond)
+	release(events, input.DitKey)
+	release(events, input.DahKey)
+
+	syms := collectN(t, symbols, 1, 200*time.Millisecond)
+	if len(syms) != 1 {
+		t.Fatalf("expected exactly one symbol, got %d", len(syms))
+	}
+	select {
+	case s := <-symbols:
+		t.Fatalf("mode A should stop after first symbol, got extra %q", symStr([]Symbol{s}))
+	case <-time.After(80 * time.Millisecond):
+	}
+}
+
+func TestIambic_ModeB_ExtraAfterSqueezeRelease(t *testing.T) {
+	_, events, symbols, cancel := runKeyer(t, testWPM, ModeB)
+	defer cancel()
+
+	press(events, input.DitKey)
+	press(events, input.DahKey)
+	time.Sleep(2 * time.Millisecond)
+	release(events, input.DitKey)
+	release(events, input.DahKey)
+
+	syms := collectN(t, symbols, 2, 300*time.Millisecond)
+	if symStr(syms) != ".-" {
+		t.Errorf("expected '.-' for mode B squeeze release, got %q", symStr(syms))
 	}
 }
