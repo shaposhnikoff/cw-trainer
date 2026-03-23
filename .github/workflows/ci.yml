@@ -30,7 +30,9 @@ jobs:
         run: go test -v -race ./...
 
       - name: Build
-        run: go build -o /dev/null ./cmd/cw-trainer
+        run: |
+          go build -o /dev/null ./cmd/cw-trainer
+          go build -o /dev/null ./cmd/cw-groups
 
   lint:
     name: golangci-lint

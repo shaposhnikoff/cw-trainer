@@ -18,10 +18,30 @@ builds:
       - amd64
     ldflags:
       - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+  - id: cw-groups
+    main: ./cmd/cw-groups
+    binary: cw-groups
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
 
 archives:
-  - id: default
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+  - id: cw-trainer
+    ids: [cw-trainer]
+    name_template: "cw-trainer_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README_en.md
+      - README.md
+      - LICENSE*
+  - id: cw-groups
+    ids: [cw-groups]
+    name_template: "cw-groups_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     formats: [tar.gz]
     files:
       - README_en.md
