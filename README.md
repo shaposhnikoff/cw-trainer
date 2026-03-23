@@ -1,7 +1,9 @@
 # CW Trainer
 
-Тренажёр кода Морзе для ключа с iambic paddle (VBand и совместимые).  
-Подключается к устройству через `/dev/input`, воспроизводит тон, декодирует символы и отображает текст в TUI.
+Набор Linux-тренажёров кода Морзе для ключа с iambic paddle (VBand и совместимые).
+
+- `cw-trainer` — декодирование в реальном времени + Koch режим
+- `cw-groups` — проигрывание групп (по умолчанию 5 символов) и повтор группы целиком
 
 ## Требования
 
@@ -25,20 +27,28 @@ cd cw-trainer
 # Загрузить зависимости
 go mod download
 
-# Собрать бинарник
-go build -o cw-trainer ./cmd/cw-trainer
+# Собрать оба бинарника
+make build
 ```
 
-Бинарник `cw-trainer` появится в текущей директории.
+Будут собраны бинарники `cw-trainer` и `cw-groups`.
+
+### Отдельные цели Makefile
+
+```bash
+make build-trainer
+make build-groups
+```
 
 ### Установка в PATH
 
 ```bash
 go install ./cmd/cw-trainer
-# бинарник окажется в $GOPATH/bin/cw-trainer
+go install ./cmd/cw-groups
+# бинарники окажутся в $GOPATH/bin/
 ```
 
-## Запуск
+## Запуск `cw-trainer`
 
 ```bash
 # Базовый запуск (устройство по умолчанию /dev/input/event4)
@@ -53,9 +63,6 @@ go install ./cmd/cw-trainer
 # Режим iambic B
 ./cw-trainer --mode iambic-b
 
-# Прямой ключ (straight key)
-./cw-trainer --mode straight
-
 # Отладочный режим — вывод сырых событий без TUI
 ./cw-trainer --debug
 ```
@@ -67,8 +74,33 @@ go install ./cmd/cw-trainer
 | `--device` | `/dev/input/event4` | Путь к evdev-устройству |
 | `--wpm` | `15` | Начальная скорость (WPM) |
 | `--freq` | `700` | Частота тона (Гц) |
-| `--mode` | `iambic-a` | Режим: `iambic-a`, `iambic-b`, `straight` |
+| `--mode` | `iambic-a` | Режим: `iambic-a`, `iambic-b` |
 | `--debug` | `false` | Отладочный режим |
+
+## Запуск `cw-groups`
+
+```bash
+# Базовый запуск (группы по 5 символов, уровень 2)
+./cw-groups
+
+# Изменить размер группы, уровень, скорость и частоту
+./cw-groups --group-size 7 --level 5 --wpm 22 --freq 650
+
+# Режим iambic B для ввода с ключа
+./cw-groups --mode iambic-b
+```
+
+### Флаги `cw-groups`
+
+| Флаг | По умолчанию | Описание |
+|------|-------------|----------|
+| `--device` | `/dev/input/event4` | Путь к evdev-устройству |
+| `--wpm` | `20` | Скорость (WPM) |
+| `--freq` | `700` | Частота тона (Гц) |
+| `--mode` | `iambic-a` | Режим keyer: `iambic-a`, `iambic-b` |
+| `--letter-space` | `4.0` | Порог межбуквенной паузы (× dit) |
+| `--group-size` | `5` | Размер группы |
+| `--level` | `2` | Koch уровень (`2..40`) |
 
 ## Определение устройства
 
@@ -103,6 +135,14 @@ newgrp input
 | `-` | Уменьшить частоту тона (−10 Гц) |
 | `R` | Сбросить декодированный текст и статистику |
 
+Для `cw-groups`:
+
+| Клавиша | Действие |
+|---------|----------|
+| `Q` / `Ctrl+C` | Выход |
+| `R` | Сброс статистики сессии |
+| `A-Z`, `0-9`, `.`, `,`, `?`, `/` | Ввод ответа с клавиатуры |
+
 ## Сборка для разработки
 
 ```bash
@@ -120,7 +160,9 @@ go vet ./...
 
 ```
 cw-trainer/
-├── cmd/cw-trainer/main.go       # точка входа, CLI флаги
+├── cmd/
+│   ├── cw-trainer/main.go       # точка входа основного тренажёра
+│   └── cw-groups/main.go        # точка входа группового тренажёра
 ├── internal/
 │   ├── input/evdev.go           # чтение событий evdev → KeyEvent
 │   ├── audio/tone.go            # генерация синусоиды (oto/v2)
@@ -128,7 +170,11 @@ cw-trainer/
 │   │   ├── iambic.go            # iambic keyer FSM (Mode A/B)
 │   │   ├── timing.go            # адаптивный декодер тайминга
 │   │   └── morse_table.go       # таблица Морзе
-│   └── ui/tui.go                # TUI (bubbletea + lipgloss)
+│   ├── groups/trainer.go        # логика групп: генерация, проверка, статистика
+│   └── ui/
+│       ├── tui.go               # TUI основного режима
+│       ├── koch_tui.go          # TUI режима Koch
+│       └── groups_tui.go        # TUI режима групп
 ├── go.mod
 └── go.sum
 ```

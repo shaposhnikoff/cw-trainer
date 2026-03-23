@@ -1,7 +1,9 @@
 # CW Trainer
 
-A Linux terminal Morse code trainer for iambic paddles (VBand and compatible).
-Reads from `/dev/input`, generates real-time audio tone, decodes Morse to text, and displays a live TUI.
+A Linux Morse training toolkit for iambic paddles (VBand and compatible).
+
+- `cw-trainer` — real-time decoder + Koch trainer mode
+- `cw-groups` — plays fixed-size groups (default 5) and asks you to repeat the whole group
 
 ## Features
 
@@ -14,7 +16,7 @@ Reads from `/dev/input`, generates real-time audio tone, decodes Morse to text, 
 
 ## Requirements
 
-- **Go** 1.21+
+- **Go** 1.24+
 - **Linux** (evdev input, Linux only)
 - **ALSA** — `libasound2-dev` or equivalent
 
@@ -29,13 +31,23 @@ sudo apt install libasound2-dev
 ```bash
 git clone https://github.com/shaposhnikoff/cw-trainer
 cd cw-trainer
-go build -o cw-trainer ./cmd/cw-trainer
+make build
+```
+
+`make build` produces both binaries: `cw-trainer` and `cw-groups`.
+
+### Separate Make targets
+
+```bash
+make build-trainer
+make build-groups
 ```
 
 ### Install to PATH
 
 ```bash
 go install ./cmd/cw-trainer
+go install ./cmd/cw-groups
 ```
 
 ## Usage
@@ -60,6 +72,19 @@ go install ./cmd/cw-trainer
 ./cw-trainer --debug --wpm 20
 ```
 
+### `cw-groups` usage
+
+```bash
+# Default: group size 5, Koch level 2
+./cw-groups
+
+# Tune group size, level, speed, tone
+./cw-groups --group-size 7 --level 5 --wpm 22 --freq 650
+
+# Iambic mode B for paddle input
+./cw-groups --mode iambic-b
+```
+
 ### All flags
 
 | Flag | Default | Description |
@@ -71,6 +96,18 @@ go install ./cmd/cw-trainer
 | `--letter-space` | `4.0` | Letter space threshold (× dit duration) |
 | `--koch` | `false` | Koch Trainer mode |
 | `--debug` | `false` | Debug mode: print symbols, no TUI |
+
+### `cw-groups` flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--device` | `/dev/input/event4` | evdev device path |
+| `--wpm` | `20` | Speed in WPM |
+| `--freq` | `700` | Tone frequency in Hz |
+| `--mode` | `iambic-a` | Keyer mode: `iambic-a`, `iambic-b` |
+| `--letter-space` | `4.0` | Letter-space threshold (× dit duration) |
+| `--group-size` | `5` | Symbols in one group |
+| `--level` | `2` | Koch level (`2..40`) |
 
 ## Device setup
 
@@ -107,6 +144,14 @@ newgrp input   # apply without re-login
 | `-` | Decrease tone frequency (−10 Hz) |
 | `R` | Reset decoded text and session stats |
 
+`cw-groups` controls:
+
+| Key | Action |
+|-----|--------|
+| `Q` / `Ctrl+C` | Quit |
+| `R` | Reset session stats |
+| `A-Z`, `0-9`, `.`, `,`, `?`, `/` | Type group answer from keyboard |
+
 ## Koch Trainer
 
 The [Koch method](https://www.qsl.net/n1irz/finley.koch.html) teaches Morse at full speed from the start:
@@ -131,7 +176,9 @@ K M R S U A P T L O W I . N J E F 0 Y V , G 5 / Q 9 Z H 3 8 B ? 4 2 7 C 1 D 6 X
 
 ```
 cw-trainer/
-├── cmd/cw-trainer/main.go        # entry point, CLI flags
+├── cmd/
+│   ├── cw-trainer/main.go        # main trainer entry point
+│   └── cw-groups/main.go         # groups trainer entry point
 ├── internal/
 │   ├── input/evdev.go            # evdev reader → KeyEvent channel
 │   ├── audio/tone.go             # PCM sine wave via oto/v2, io.Pipe
@@ -144,9 +191,13 @@ cw-trainer/
 │   │   ├── session.go            # Koch session logic
 │   │   ├── progress.go           # JSON progress persistence
 │   │   └── morse_map.go          # symbol→pattern lookup
+│   ├── groups/
+│   │   ├── trainer.go            # group generation/checking/stats logic
+│   │   └── trainer_test.go       # tests for group logic
 │   └── ui/
-│       ├── tui.go                # main TUI (bubbletea + lipgloss)
-│       └── koch_tui.go           # Koch Trainer TUI screen
+│       ├── tui.go                # main decoder TUI
+│       ├── koch_tui.go           # Koch Trainer TUI screen
+│       └── groups_tui.go         # groups mode TUI screen
 ├── go.mod
 └── go.sum
 ```
