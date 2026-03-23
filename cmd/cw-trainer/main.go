@@ -22,14 +22,23 @@ import (
 )
 
 func main() {
-	devicePath   := flag.String("device", "/dev/input/event4", "evdev device path")
-	wpm          := flag.Int("wpm", 15, "initial speed in WPM")
-	freq         := flag.Int("freq", 700, "tone frequency in Hz")
-	mode         := flag.String("mode", "iambic-a", "keyer mode: iambic-a, iambic-b")
+	devicePath := flag.String("device", "/dev/input/event4", "evdev device path")
+	wpm := flag.Int("wpm", 15, "initial speed in WPM")
+	freq := flag.Int("freq", 700, "tone frequency in Hz")
+	mode := flag.String("mode", "iambic-a", "keyer mode: iambic-a, iambic-b")
 	letterSpaceMult := flag.Float64("letter-space", 4.0, "letter space threshold multiplier (× dit)")
-	debug        := flag.Bool("debug", false, "debug mode: print symbols, no TUI")
-	kochMode     := flag.Bool("koch", false, "Koch trainer mode")
+	debug := flag.Bool("debug", false, "debug mode: print symbols, no TUI")
+	kochMode := flag.Bool("koch", false, "Koch trainer mode")
 	flag.Parse()
+
+	if *wpm <= 0 {
+		fmt.Fprintln(os.Stderr, "invalid --wpm: must be > 0")
+		os.Exit(2)
+	}
+	if *letterSpaceMult <= 0 || *letterSpaceMult > 7 {
+		fmt.Fprintln(os.Stderr, "invalid --letter-space: must be in (0, 7]")
+		os.Exit(2)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -125,7 +134,24 @@ func main() {
 		if tone != nil {
 			tone.PlayElement(toneMs, gapMs)
 		}
+		ditMs := timingDecoder.GetDitMs()
+		if toneMs > 2*ditMs {
+			tuiEvents <- ui.TUIEvent{Type: ui.MsgDahOn}
+			time.AfterFunc(time.Duration(toneMs*float64(time.Millisecond)), func() {
+				select {
+				case tuiEvents <- ui.TUIEvent{Type: ui.MsgDahOff}:
+				default:
+				}
+			})
+			return
+		}
 		tuiEvents <- ui.TUIEvent{Type: ui.MsgDitOn}
+		time.AfterFunc(time.Duration(toneMs*float64(time.Millisecond)), func() {
+			select {
+			case tuiEvents <- ui.TUIEvent{Type: ui.MsgDitOff}:
+			default:
+			}
+		})
 	}
 
 	iambicKeyer := decoder.NewIambicKeyer(iambicMode, timingDecoder, onSymbol, onElement)
@@ -172,6 +198,9 @@ func runKoch(ctx context.Context, tone *audio.Tone, iambicEvents <-chan input.Ke
 	if wpm > 0 {
 		prog.WPM = wpm
 	}
+	if prog.WPM <= 0 {
+		prog.WPM = 20
+	}
 
 	session := koch.NewSession(prog.Level, prog.WPM, prog.SymbolStats)
 
@@ -183,11 +212,6 @@ func runKoch(ctx context.Context, tone *audio.Tone, iambicEvents <-chan input.Ke
 		func(r rune) {
 			select {
 			case answerCh <- r:
-			default:
-			}
-			// Also send as KochMsgAnswer so TUI can show it
-			select {
-			case kochEvents <- ui.KochEvent{Type: ui.KochMsgAnswer, Symbol: r}:
 			default:
 			}
 		},
@@ -351,7 +375,7 @@ func runKoch(ctx context.Context, tone *audio.Tone, iambicEvents <-chan input.Ke
 	model := ui.NewKochModel(
 		session.Level, prog.WPM,
 		session.ActiveSymbols(),
-		kochEvents, answerCh,
+		kochEvents,
 		func() { cancel() },
 	)
 	p := tea.NewProgram(model, tea.WithAltScreen())

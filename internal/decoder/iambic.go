@@ -42,7 +42,7 @@ func (k *IambicKeyer) Run(ctx context.Context, events <-chan input.KeyEvent) {
 	type phase int
 	const (
 		idle    phase = iota
-		sending // timer covers tone + gap
+		sending       // timer covers tone + gap
 	)
 
 	var (
@@ -52,6 +52,7 @@ func (k *IambicKeyer) Run(ctx context.Context, events <-chan input.KeyEvent) {
 		cur       = idle
 		curSym    Symbol
 		curToneMs float64
+		bLatch    bool
 	)
 
 	timer := time.NewTimer(time.Hour)
@@ -68,6 +69,7 @@ func (k *IambicKeyer) Run(ctx context.Context, events <-chan input.KeyEvent) {
 	startElement := func(sym Symbol) {
 		curSym = sym
 		cur = sending
+		bLatch = ditHeld && dahHeld
 		toneMs := elDur(sym)
 		gapMs := ditMs()
 		curToneMs = toneMs
@@ -113,6 +115,9 @@ func (k *IambicKeyer) Run(ctx context.Context, events <-chan input.KeyEvent) {
 			case input.DahKey:
 				dahHeld = ev.Action == input.Press
 			}
+			if cur == sending && ditHeld && dahHeld {
+				bLatch = true
+			}
 			if cur == idle && (ditHeld || dahHeld) {
 				pickNext()
 			}
@@ -122,6 +127,14 @@ func (k *IambicKeyer) Run(ctx context.Context, events <-chan input.KeyEvent) {
 				k.onSymbol(curSym, curToneMs)
 			}
 			lastSym = curSym
+			if k.mode == ModeB && bLatch && !ditHeld && !dahHeld {
+				next := SymDit
+				if curSym == SymDit {
+					next = SymDah
+				}
+				startElement(next)
+				continue
+			}
 			pickNext()
 		}
 	}

@@ -19,7 +19,6 @@ const (
 	KochMsgCorrect                    // user answered correctly
 	KochMsgWrong                      // user answered wrong (with correct answer)
 	KochMsgLevelUp                    // leveled up
-	KochMsgAnswer                     // user typed this char (from decoder)
 )
 
 type KochEvent struct {
@@ -36,7 +35,7 @@ type KochEvent struct {
 type KochState int
 
 const (
-	KochStatePlaying  KochState = iota
+	KochStatePlaying KochState = iota
 	KochStateWaiting
 	KochStateCorrect
 	KochStateWrong
@@ -56,7 +55,6 @@ type KochModel struct {
 	activeSyms   []rune
 	wpm          int
 	events       <-chan KochEvent
-	answerCh     chan<- rune
 	onQuit       func()
 	width        int
 	height       int
@@ -66,7 +64,6 @@ func NewKochModel(
 	level, wpm int,
 	activeSyms []rune,
 	events <-chan KochEvent,
-	answerCh chan<- rune,
 	onQuit func(),
 ) KochModel {
 	return KochModel{
@@ -77,7 +74,6 @@ func NewKochModel(
 		activeSyms:   activeSyms,
 		sessionStart: time.Now(),
 		events:       events,
-		answerCh:     answerCh,
 		onQuit:       onQuit,
 	}
 }
@@ -129,14 +125,6 @@ func (m KochModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.state = KochStateLevelUp
 			m.level = msg.Level
 			m.currentSym = msg.Symbol // new symbol being introduced
-		case KochMsgAnswer:
-			// forward to session goroutine
-			if m.answerCh != nil {
-				select {
-				case m.answerCh <- msg.Symbol:
-				default:
-				}
-			}
 		}
 		return m, tea.Batch(cmds...)
 
